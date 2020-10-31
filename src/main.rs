@@ -7,8 +7,7 @@ use ramhorns::{Template, Ramhorns};
 use regex::{Captures, Regex};
 use fs_extra::dir;
 
-use std::fs::{read_dir, read_to_string, create_dir, remove_dir_all, write};
-use std::io::ErrorKind as IoError;
+use std::fs::{read_dir, read_to_string, create_dir_all, write};
 use std::collections::HashMap;
 use std::process::exit;
 use std::path::PathBuf;
@@ -32,17 +31,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 	let mut templates = Ramhorns::from_folder("theme")?;
 
-	remove_dir_all("build").or_else(|x| {
-		if x.kind() == IoError::NotFound {
-			Ok(())
-		} else {
-			Err(x)
-		}
-	})?;
-
-	create_dir("build")?;
-	dir::copy("media", "build/", &dir::CopyOptions::new())?;
-	dir::copy("theme/static", "build/", &dir::CopyOptions::new())?;
+	create_dir_all("build")?;
+	dir::copy("media", "build/", &{let mut c = dir::CopyOptions::new(); c.overwrite = true; c})?;
+	dir::copy("theme/static", "build/", &{let mut c = dir::CopyOptions::new(); c.overwrite = true; c})?;
 
 	template_files.iter().for_each(|path| {
 		let tpl = templates
