@@ -179,6 +179,7 @@ name = "hyper-rat"
 version = "0.1.0"
 dependencies = [
  "fs_extra",
+ "pulldown-cmark 0.8.0",
  "ramhorns",
  "rayon",
  "regex",
@@ -274,6 +275,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pulldown-cmark"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffade02495f22453cd593159ea2f59827aae7f53fa8323f756799b670881dcf8"
+dependencies = [
+ "bitflags",
+ "getopts",
+ "memchr",
+ "unicase",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -293,7 +306,7 @@ dependencies = [
  "beef",
  "fnv",
  "logos",
- "pulldown-cmark",
+ "pulldown-cmark 0.7.2",
  "ramhorns-derive",
 ]
 

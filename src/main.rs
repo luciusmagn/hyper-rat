@@ -1,8 +1,10 @@
+extern crate pulldown_cmark;
 extern crate ramhorns;
 extern crate fs_extra;
 extern crate regex;
 extern crate toml;
 
+use pulldown_cmark::{Parser, html};
 use ramhorns::{Template, Ramhorns};
 use regex::{Captures, Regex};
 use fs_extra::dir;
@@ -32,8 +34,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 	let mut templates = Ramhorns::from_folder("theme")?;
 
 	create_dir_all("build")?;
-	dir::copy("media", "build/", &{let mut c = dir::CopyOptions::new(); c.overwrite = true; c})?;
-	dir::copy("theme/static", "build/", &{let mut c = dir::CopyOptions::new(); c.overwrite = true; c})?;
+	dir::copy("media", "build/", &{
+		let mut c = dir::CopyOptions::new();
+		c.overwrite = true;
+		c
+	})?;
+	dir::copy("theme/static", "build/", &{
+		let mut c = dir::CopyOptions::new();
+		c.overwrite = true;
+		c
+	})?;
 
 	template_files.iter().for_each(|path| {
 		let tpl = templates
@@ -85,19 +95,27 @@ fn main() -> Result<(), Box<dyn Error>> {
 					_ => {
 						head = v[0].trim().to_string();
 						body = v[1].trim();
-					},
+					}
 				}
+				dbg!(&head);
+				dbg!(&body);
+
+				let body = {
+					let mut h = String::new();
+					html::push_html(&mut h, Parser::new(&body));
+					h
+				};
 
 				let data = match toml::from_str::<HashMap<String, String>>(&head) {
 					Ok(mut s) => {
 						s.insert("body".into(), body.into());
 						s
-					},
+					}
 					Err(_) => {
 						let mut h = HashMap::new();
 						h.insert("body".into(), body.into());
 						h
-					},
+					}
 				};
 
 				let tpl = template_cache.entry(tpl_name.clone()).or_insert_with(|| {
@@ -112,7 +130,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 								tpl_name, e
 							);
 							exit(1);
-						},
+						}
 					}
 				});
 
