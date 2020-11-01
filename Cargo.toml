@@ -3,6 +3,8 @@ name = "hyper-rat"
 version = "0.1.0"
 authors = ["Lukáš Hozda <luk.hozda@gmail.com>"]
 edition = "2018"
+description = "An ultra-simple opinionated static site generator with markdown support"
+license = "Fair"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
