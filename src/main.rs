@@ -3,6 +3,7 @@ extern crate ramhorns;
 extern crate fs_extra;
 extern crate regex;
 extern crate toml;
+#[macro_use] extern crate die;
 
 use pulldown_cmark::{Parser, html};
 use ramhorns::{Template, Ramhorns};
@@ -10,9 +11,8 @@ use regex::{Captures, Regex};
 use fs_extra::dir;
 
 use std::fs::{read_dir, read_to_string, create_dir_all, write};
+use std::path::{Path, PathBuf};
 use std::collections::HashMap;
-use std::process::exit;
-use std::path::PathBuf;
 use std::error::Error;
 
 static TEMPLATE: &str = "{{body}}";
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 			&PathBuf::from("build").join(&path.strip_prefix("theme").unwrap()),
 			&(),
 		) {
-			println!("failed to render to file: {}", e);
+			die!("failed to render to file: {}", e);
 		}
 	});
 
@@ -69,76 +69,93 @@ fn main() -> Result<(), Box<dyn Error>> {
 		.filter_map(|x| if let (n, Ok(s)) = x { Some((n, s)) } else { None })
 		.for_each(|(path, contents)| {
 			let processed = content_regex.replace_all(&contents, |caps: &Captures| {
+				let path = Path::new(&caps["content"]);
+				let files = match path {
+					p if !p.exists() => die!("path does not exist: {}", p.display()),
+					p if p.is_file() => vec![p.to_owned()],
+					p if p.is_dir() => read_dir(p)
+						.unwrap_or_else(|_| {
+							die!("could not read directory {}", p.display())
+						})
+						.filter_map(|x| x.ok().map(|x| dbg!(x.path())))
+						.filter(|x| dbg!(x.is_file()) && dbg!(x.to_str().unwrap_or_default().ends_with(".md")))
+						.inspect(|x| {dbg!(x);})
+						.collect::<Vec<PathBuf>>(),
+					p => die!("invalid path: {}", p.display()),
+				};
+
+				dbg!(&files);
+
+				let mut s = String::new();
+
 				println!("{}", caps.len());
-				let content = match read_to_string(dbg!(caps["content"].to_string())) {
-					Ok(s) => s,
-					Err(e) => {
-						eprintln!("failed to read file {}: {}", path.display(), e);
-						exit(1);
-					}
-				};
+				for f in files {
+					let content = match read_to_string(dbg!(f)) {
+						Ok(s) => s,
+						Err(e) => die!("failed to read file {}: {}", path.display(), e),
+					};
 
-				let tpl_name = caps
-					.name("template")
-					.map(|x| x.as_str().trim())
-					.unwrap_or("base")
-					.to_string();
+					let tpl_name = caps
+						.name("template")
+						.map(|x| x.as_str().trim())
+						.unwrap_or("base")
+						.to_string();
 
-				let (head, body);
-				let v: Vec<&str> = content.splitn(2, "\n\n").collect();
+					let (head, body);
+					let v: Vec<&str> = content.splitn(2, "\n\n").collect();
 
-				match v.len() {
-					1 => {
-						body = v[0].trim();
-						head = "".to_string();
-					}
-					_ => {
-						head = v[0].trim().to_string();
-						body = v[1].trim();
-					}
-				}
-				dbg!(&head);
-				dbg!(&body);
-
-				let body = {
-					let mut h = String::new();
-					html::push_html(&mut h, Parser::new(&body));
-					h
-				};
-
-				let data = match toml::from_str::<HashMap<String, String>>(&head) {
-					Ok(mut s) => {
-						s.insert("body".into(), body.into());
-						s
-					}
-					Err(_) => {
-						let mut h = HashMap::new();
-						h.insert("body".into(), body.into());
-						h
-					}
-				};
-
-				let tpl = template_cache.entry(tpl_name.clone()).or_insert_with(|| {
-					match read_to_string(&tpl_name) {
-						Ok(s) => Template::new(s).unwrap_or_else(|_| {
-							eprintln!("template suck");
-							exit(1);
-						}),
-						Err(e) => {
-							eprintln!(
-								"failed to make template from file {}: {}",
-								tpl_name, e
-							);
-							exit(1);
+					match v.len() {
+						1 => {
+							body = v[0].trim();
+							head = "".to_string();
+						}
+						_ => {
+							head = v[0].trim().to_string();
+							body = v[1].trim();
 						}
 					}
-				});
+					dbg!(&head);
+					dbg!(&body);
 
-				tpl.render(&data)
+					let body = {
+						let mut h = String::new();
+						html::push_html(&mut h, Parser::new(&body));
+						h
+					};
+
+					let data = match toml::from_str::<HashMap<String, String>>(&head) {
+						Ok(mut s) => {
+							s.insert("body".into(), body.into());
+							s
+						}
+						Err(_) => {
+							let mut h = HashMap::new();
+							h.insert("body".into(), body.into());
+							h
+						}
+					};
+
+					let tpl =
+						template_cache.entry(tpl_name.clone()).or_insert_with(|| {
+							match read_to_string(&tpl_name) {
+								Ok(s) => Template::new(s)
+									.unwrap_or_else(|_| die!("template suck")),
+								Err(e) => die!(
+									"failed to make template from file {}: {}",
+									tpl_name,
+									e
+								),
+							}
+						});
+
+					s.push_str(&tpl.render(&data));
+				}
+
+				s
 			});
 
 			if let Err(e) = write(path, processed.to_string()) {
-				eprintln!("failed to write to file {}: {}", path.display(), e);
+				die!("failed to write to file {}: {}", path.display(), e);
 			}
 		});
 
