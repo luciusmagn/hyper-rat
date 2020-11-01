@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 		.for_each(|(path, contents)| {
 			let processed = content_regex.replace_all(&contents, |caps: &Captures| {
 				let path = Path::new(&caps["content"]);
-				let files = match path {
+				let mut files = match path {
 					p if !p.exists() => die!("path does not exist: {}", p.display()),
 					p if p.is_file() => vec![p.to_owned()],
 					p if p.is_dir() => read_dir(p)
@@ -83,6 +83,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 						.collect::<Vec<PathBuf>>(),
 					p => die!("invalid path: {}", p.display()),
 				};
+
+				files.sort();
 
 				dbg!(&files);
 
