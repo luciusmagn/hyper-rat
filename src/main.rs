@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::error::Error;
 
-static TEMPLATE: &str = "{{body}}";
+static TEMPLATE: &str = "{{{body}}}";
 
 fn main() -> Result<(), Box<dyn Error>> {
 	let content_regex = Regex::new(
